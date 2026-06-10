@@ -195,13 +195,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           precioController.text,
                         );
                         if (precioDestino != null) {
-                          // Descomenta cuando enlaces tu ApiService real:
-                          // bool ok = await apiService.guardarAlerta(widget.producto.id, "tu_correo@gmail.com", precioDestino);
-                          // if (ok) {
-                          //   ScaffoldMessenger.of(context).showSnackBar(
-                          //     const SnackBar(content: Text('¡Alerta guardada en MySQL!')),
-                          //   );
-                          // }
+                          bool ok = await apiService.guardarAlerta(
+                            widget.producto.id,
+                            "danirosellmartin@gmail.com",
+                            precioDestino,
+                          );
+                          if (ok) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('¡Alerta guardada!'),
+                              ),
+                            );
+                          }
                         }
                       }
                     },
