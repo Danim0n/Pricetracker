@@ -47,4 +47,18 @@ class ApiService {
 
     return response.statusCode == 200;
   }
+
+  Future<List<dynamic>> obtenerAlertas() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/alertas'));
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Error al cargar alertas del servidor');
+      }
+    } catch (e) {
+      throw Exception('No se pudo conectar con el backend: $e');
+    }
+  }
 }
