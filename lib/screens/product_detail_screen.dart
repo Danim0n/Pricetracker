@@ -15,10 +15,37 @@ class ProductDetailScreen extends StatefulWidget {
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   bool switchActivado = false;
   TextEditingController precioController = TextEditingController();
+  bool alertaActivada = false;
   @override
   void dispose() {
     precioController.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarAlertaExistente();
+  }
+
+  void _cargarAlertaExistente() async {
+    final apiService = ApiService();
+    try {
+      // Llamas a tu ApiService apuntando al nuevo endpoint GET /productos/{id}/alerta-usuario
+      final datosAlerta = await apiService.obtenerAlertaUsuario(
+        widget.producto.id,
+        "danirosellmartin@gmail.com",
+      );
+
+      if (datosAlerta['existe'] == true) {
+        setState(() {
+          precioController.text = datosAlerta['precio_objetivo'];
+          alertaActivada = datosAlerta['activa'];
+        });
+      }
+    } catch (e) {
+      throw Exception("No había alerta previa o falló la conexión: $e");
+    }
   }
 
   @override
@@ -199,6 +226,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             widget.producto.id,
                             "danirosellmartin@gmail.com",
                             precioDestino,
+                            alertaActivada,
                           );
                           if (ok) {
                             ScaffoldMessenger.of(context).showSnackBar(
