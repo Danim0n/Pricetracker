@@ -93,4 +93,39 @@ class ApiService {
       throw Exception('Error de conexión al consultar alerta: $e');
     }
   }
+
+  Future<bool> actualizarEstadoAlerta(int alertaId, bool esActiva) async {
+    try {
+      final url = Uri.parse('$baseUrl/alertas/$alertaId/status');
+      final bodyData = jsonEncode({
+        "activa": esActiva, // Mandamos true o false directamente
+      });
+
+      final response = await http.put(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: bodyData,
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print("❌ Error al actualizar el estado de la alerta: $e");
+      return false;
+    }
+  }
+
+  Future<bool> eliminarAlerta(int alertaId) async {
+    try {
+      final url = Uri.parse('$baseUrl/alertas/$alertaId');
+      final response = await http.delete(url);
+
+      if (response.statusCode == 200) {
+        final resultado = jsonDecode(response.body);
+        return resultado['status'] == 'success';
+      }
+      return false;
+    } catch (e) {
+      throw Exception('Error al eliminar alerta: $e');
+    }
+  }
 }

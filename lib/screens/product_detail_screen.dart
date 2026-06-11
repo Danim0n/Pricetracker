@@ -13,9 +13,13 @@ class ProductDetailScreen extends StatefulWidget {
 }
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
-  bool switchActivado = false;
+  final ApiService _apiService = ApiService();
   TextEditingController precioController = TextEditingController();
-  bool alertaActivada = false;
+
+  bool switchActivado = false;
+  bool alertaExiste = false;
+  int? alertaId;
+
   @override
   void dispose() {
     precioController.dispose();
@@ -29,10 +33,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   void _cargarAlertaExistente() async {
-    final apiService = ApiService();
     try {
-      // Llamas a tu ApiService apuntando al nuevo endpoint GET /productos/{id}/alerta-usuario
-      final datosAlerta = await apiService.obtenerAlertaUsuario(
+      final datosAlerta = await _apiService.obtenerAlertaUsuario(
         widget.producto.id,
         "danirosellmartin@gmail.com",
       );
@@ -40,17 +42,24 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       if (datosAlerta['existe'] == true) {
         setState(() {
           precioController.text = datosAlerta['precio_objetivo'];
-          alertaActivada = datosAlerta['activa'];
+          switchActivado = datosAlerta['activa'] == true;
+          alertaExiste = true;
+          alertaId = datosAlerta['alerta_id'];
+        });
+      } else {
+        setState(() {
+          switchActivado = false;
+          alertaExiste = false;
+          alertaId = null;
         });
       }
     } catch (e) {
-      throw Exception("No había alerta previa o falló la conexión: $e");
+      print("No había alerta previa o falló la conexión: $e");
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final apiService = ApiService();
     return Scaffold(
       appBar: AppBar(),
       body: SafeArea(
@@ -71,7 +80,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 height: 400,
                 width: double.infinity,
                 child: FutureBuilder<List<PriceHistory>>(
-                  future: apiService.fetchHistorial(widget.producto.id),
+                  future: _apiService.fetchHistorial(widget.producto.id),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
@@ -199,7 +208,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     value: switchActivado,
                     activeThumbColor: Colors.blue,
                     onChanged: (bool nuevoValor) async {
-                      // 1. Si intenta activar sin precio, lo frenamos
                       if (nuevoValor && precioController.text.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -211,29 +219,58 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         return;
                       }
 
-                      // 2. Cambiamos el estado visual del Switch
-                      setState(() {
-                        switchActivado = !switchActivado;
-                      });
+                      if (alertaExiste && alertaId != null) {
+                        // La alerta ya existe → solo actualizamos el estado activa
+                        setState(() {
+                          switchActivado = nuevoValor;
+                        });
 
-                      // 3. Si se ha activado, disparamos la petición a la API
-                      if (switchActivado) {
+                        bool exito = await _apiService.actualizarEstadoAlerta(
+                          alertaId!,
+                          nuevoValor,
+                        );
+
+                        if (!exito) {
+                          setState(() {
+                            switchActivado = !nuevoValor;
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Error al actualizar el estado de la alerta',
+                              ),
+                            ),
+                          );
+                        }
+                      } else {
+                        // No existe alerta → creamos una nueva
                         double? precioDestino = double.tryParse(
                           precioController.text,
                         );
                         if (precioDestino != null) {
-                          bool ok = await apiService.guardarAlerta(
+                          setState(() {
+                            switchActivado = true;
+                          });
+
+                          bool ok = await _apiService.guardarAlerta(
                             widget.producto.id,
                             "danirosellmartin@gmail.com",
                             precioDestino,
-                            alertaActivada,
+                            true,
                           );
+
                           if (ok) {
+                            // Recargamos para obtener el alerta_id del servidor
+                            _cargarAlertaExistente();
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('¡Alerta guardada!'),
                               ),
                             );
+                          } else {
+                            setState(() {
+                              switchActivado = false;
+                            });
                           }
                         }
                       }
@@ -241,6 +278,73 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
                 ],
               ),
+
+              // Botón para eliminar la alerta (solo visible si existe)
+              if (alertaExiste && alertaId != null)
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                            title: const Text('Confirmación'),
+                            content: const Text(
+                              '¿Estás seguro de que quieres eliminar la alerta?',
+                            ),
+                            actions: <Widget>[
+                              TextButton(
+                                child: const Text('Cancelar'),
+                                onPressed: () => Navigator.of(context).pop(),
+                              ),
+                              TextButton(
+                                child: const Text('Eliminar'),
+                                onPressed: () async {
+                                  bool borrado = await _apiService
+                                      .eliminarAlerta(alertaId!);
+                                  Navigator.of(context).pop();
+                                  if (borrado) {
+                                    setState(() {
+                                      switchActivado = false;
+                                      alertaExiste = false;
+                                      alertaId = null;
+                                      precioController.clear();
+                                    });
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Alerta eliminada correctamente.',
+                                        ),
+                                      ),
+                                    );
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'No se pudo eliminar la alerta.',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
+                    icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                    label: const Text(
+                      'Eliminar alerta',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.red),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
