@@ -27,9 +27,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (token != null) {
       await storage.write(key: 'jwt', value: token);
 
-      Navigator.pushReplacement(
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const MainScreen()),
+        (route) => false,
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

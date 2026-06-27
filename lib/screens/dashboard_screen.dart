@@ -1,8 +1,11 @@
+import 'dart:nativewrappers/_internal/vm/lib/ffi_allocation_patch.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:pricetracker_app/models/product_model.dart';
 import 'package:pricetracker_app/screens/product_detail_screen.dart';
 import 'package:pricetracker_app/service/api_service.dart';
+import 'package:pricetracker_app/service/auth_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -21,7 +24,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _datosFuture = _fetchDatos();
-    _cargarNombre();
   }
 
   Future<List<dynamic>> _fetchDatos() {
@@ -33,10 +35,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _cargarNombre() async {
-    String? nombre = await _storage.read(key: 'nombre_usuario');
-    if (nombre != null) {
+    String? nombre = await _storage.read(key: 'nombre');
+
+    if (nombre != null && nombre.isNotEmpty) {
       setState(() {
         _nombreUsuario = nombre;
+      });
+    } else {
+      setState(() {
+        _nombreUsuario = "Usuario";
       });
     }
   }
@@ -57,6 +64,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } catch (_) {
       return null;
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _cargarNombre();
   }
 
   @override
