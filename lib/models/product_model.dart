@@ -4,6 +4,7 @@ class Product {
   final String urlTienda;
   final String imagenUrl;
   final double precioActual;
+  final double precioOriginal;
 
   Product({
     required this.id,
@@ -11,6 +12,7 @@ class Product {
     required this.urlTienda,
     required this.imagenUrl,
     required this.precioActual,
+    required this.precioOriginal,
   });
   factory Product.fromJson(Map<String, dynamic> json) {
     return Product(
@@ -19,6 +21,7 @@ class Product {
       urlTienda: json['url_tienda'],
       imagenUrl: json['imagen_url'],
       precioActual: (json['precio_actual'] as num).toDouble(),
+      precioOriginal: (json['precio_original'] as num).toDouble(),
     );
   }
 }

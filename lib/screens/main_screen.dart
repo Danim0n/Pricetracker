@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pricetracker_app/screens/alerts_screen.dart';
 import 'package:pricetracker_app/screens/dashboard_screen.dart';
+import 'package:pricetracker_app/screens/search_screen.dart';
+import 'package:pricetracker_app/screens/settings_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -14,9 +16,9 @@ class _MainScreenState extends State<MainScreen> {
 
   final screens = [
     DashboardScreen(),
-    Center(child: Text('Search Screen')),
+    SearchScreen(),
     AlertsScreen(),
-    Center(child: Text('Settings Screen')),
+    SettingsScreen(),
   ];
   @override
   Widget build(BuildContext context) {
