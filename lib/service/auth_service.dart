@@ -15,6 +15,13 @@ class AuthService {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
+      print(
+        '-------------------------------------------------------------------',
+      );
+      print(data);
+      print(
+        '-------------------------------------------------------------------',
+      );
       await _storage.write(key: 'jwt', value: data['access_token']);
       await _storage.write(key: 'nombre', value: data['nombre']);
       return data['access_token'];

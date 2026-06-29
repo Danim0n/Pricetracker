@@ -16,10 +16,10 @@ class Product {
   });
   factory Product.fromJson(Map<String, dynamic> json) {
     return Product(
-      id: json['id'],
-      nombre: json['nombre'],
-      urlTienda: json['url_tienda'],
-      imagenUrl: json['imagen_url'],
+      id: json['id'] as int,
+      nombre: json['nombre'].toString(),
+      urlTienda: json['url_tienda'].toString(),
+      imagenUrl: json['imagen_url'].toString(),
       precioActual: (json['precio_actual'] as num).toDouble(),
       precioOriginal: (json['precio_original'] as num).toDouble(),
     );

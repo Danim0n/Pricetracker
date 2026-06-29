@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:pricetracker_app/models/alerta_model.dart';
 import 'package:pricetracker_app/models/price_history_model.dart';
 import 'package:pricetracker_app/models/product_model.dart';
 import 'package:pricetracker_app/service/api_service.dart';
@@ -17,8 +18,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   TextEditingController precioController = TextEditingController();
 
   bool switchActivado = false;
-  bool alertaExiste = false;
-  int? alertaId;
+  bool cargandoAlerta = true;
+  Alerta? alerta;
 
   @override
   void dispose() {
@@ -29,32 +30,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _cargarAlertaExistente();
+    _cargarEstadoAlerta();
   }
 
-  void _cargarAlertaExistente() async {
+  Future<void> _cargarEstadoAlerta() async {
+    setState(() => cargandoAlerta = true);
     try {
-      final datosAlerta = await _apiService.obtenerAlertaUsuario(
-        widget.producto.id,
-        "danirosellmartin@gmail.com",
-      );
+      final alertas = await _apiService.obtenerAlertas();
+      final alertaEncontrada = alertas
+          .where((a) => a.productoId == widget.producto.id)
+          .firstOrNull;
 
-      if (datosAlerta['existe'] == true) {
-        setState(() {
-          precioController.text = datosAlerta['precio_objetivo'];
-          switchActivado = datosAlerta['activa'] == true;
-          alertaExiste = true;
-          alertaId = datosAlerta['alerta_id'];
-        });
-      } else {
-        setState(() {
-          switchActivado = false;
-          alertaExiste = false;
-          alertaId = null;
-        });
-      }
+      setState(() {
+        alerta = alertaEncontrada;
+        if (alerta != null) {
+          switchActivado = alerta!.activa;
+          precioController.text = alerta!.precioObjetivo.toString();
+        }
+        cargandoAlerta = false;
+      });
     } catch (e) {
-      print("No había alerta previa o falló la conexión: $e");
+      setState(() => cargandoAlerta = false);
     }
   }
 
@@ -219,58 +215,31 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         return;
                       }
 
-                      if (alertaExiste && alertaId != null) {
-                        // La alerta ya existe → solo actualizamos el estado activa
-                        setState(() {
-                          switchActivado = nuevoValor;
-                        });
-
+                      if (alerta != null) {
+                        // ACTUALIZAR ALERTA
+                        setState(() => switchActivado = nuevoValor);
                         bool exito = await _apiService.actualizarEstadoAlerta(
-                          alertaId!,
+                          alerta!.id,
                           nuevoValor,
                         );
-
                         if (!exito) {
-                          setState(() {
-                            switchActivado = !nuevoValor;
-                          });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Error al actualizar el estado de la alerta',
-                              ),
-                            ),
-                          );
+                          setState(
+                            () => switchActivado = !nuevoValor,
+                          ); // Revertir
                         }
                       } else {
-                        // No existe alerta → creamos una nueva
+                        // CREAR ALERTA
                         double? precioDestino = double.tryParse(
                           precioController.text,
                         );
                         if (precioDestino != null) {
-                          setState(() {
-                            switchActivado = true;
-                          });
-
                           bool ok = await _apiService.guardarAlerta(
                             widget.producto.id,
-                            "danirosellmartin@gmail.com",
-                            precioDestino,
+                            alerta!.precioObjetivo,
                             true,
                           );
-
                           if (ok) {
-                            // Recargamos para obtener el alerta_id del servidor
-                            _cargarAlertaExistente();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('¡Alerta guardada!'),
-                              ),
-                            );
-                          } else {
-                            setState(() {
-                              switchActivado = false;
-                            });
+                            _cargarEstadoAlerta();
                           }
                         }
                       }
@@ -279,8 +248,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ],
               ),
 
-              // Botón para eliminar la alerta (solo visible si existe)
-              if (alertaExiste && alertaId != null)
+              // Botón para eliminar la alerta
+              if (alerta != null)
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
@@ -302,13 +271,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                 child: const Text('Eliminar'),
                                 onPressed: () async {
                                   bool borrado = await _apiService
-                                      .eliminarAlerta(alertaId!);
+                                      .eliminarAlerta(alerta!.id);
                                   Navigator.of(context).pop();
                                   if (borrado) {
                                     setState(() {
                                       switchActivado = false;
-                                      alertaExiste = false;
-                                      alertaId = null;
                                       precioController.clear();
                                     });
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -334,7 +301,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         },
                       );
                     },
-                    icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                    icon: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: Colors.red,
+                    ),
                     label: const Text(
                       'Eliminar alerta',
                       style: TextStyle(color: Colors.red),

@@ -11,7 +11,6 @@ class AlertsScreen extends StatefulWidget {
 class _AlertsScreenState extends State<AlertsScreen> {
   final ApiService _apiService = ApiService();
 
-  // Lista local de alertas para gestionar el estado sin re-fetch
   List<dynamic> _alertas = [];
   bool _isLoading = true;
   String? _error;
@@ -56,9 +55,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                 style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 20),
-              Expanded(
-                child: _buildContent(),
-              ),
+              Expanded(child: _buildContent()),
             ],
           ),
         ),
@@ -71,9 +68,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_error != null) {
-      return Center(
-        child: Text('Error al cargar las alertas: $_error'),
-      );
+      return Center(child: Text('Error al cargar las alertas: $_error'));
     }
     if (_alertas.isEmpty) {
       return const Center(
@@ -87,9 +82,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
       itemBuilder: (context, i) {
         final alerta = _alertas[i];
 
-        // Convertimos lo que venga de la BD (1, 0, true, false) a bool
-        bool isSwitchedOn =
-            alerta['activa'] == 1 || alerta['activa'] == true;
+        bool isSwitchedOn = alerta.activa == 1 || alerta.activa == true;
 
         return Card(
           elevation: 10,
@@ -101,26 +94,21 @@ class _AlertsScreenState extends State<AlertsScreen> {
                 Row(
                   children: [
                     Image.network(
-                      'https://cors-anywhere.herokuapp.com/${alerta['producto_imagen']}',
+                      '',
                       fit: BoxFit.cover,
                       height: 100,
                       width: 100,
                       errorBuilder: (context, error, stackTrace) {
-                        return const Icon(
-                          Icons.image_outlined,
-                          size: 100,
-                        );
+                        return const Icon(Icons.image_outlined, size: 100);
                       },
                     ),
                     const SizedBox(width: 20),
                     Flexible(
                       child: Text(
-                        alerta['producto_nombre'] ?? 'Producto',
+                        alerta.product.nombre,
                         maxLines: 4,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
@@ -128,10 +116,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                 const SizedBox(height: 15),
                 const Text(
                   'Precio Actual / Precio Objetivo',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(color: Colors.grey, fontSize: 13),
                 ),
                 const SizedBox(height: 5),
                 SizedBox(
@@ -140,13 +125,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '${alerta['producto_precio_actual']}€',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        '${alerta.product.precioActual}€',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       Text(
-                        '${alerta['precio_objetivo']}€',
+                        '${alerta.precioObjetivo}€',
                         style: const TextStyle(
                           color: Colors.orange,
                           fontWeight: FontWeight.bold,
@@ -161,24 +144,23 @@ class _AlertsScreenState extends State<AlertsScreen> {
                   children: [
                     Switch(
                       value: isSwitchedOn,
-                      activeColor: Colors.orange,
+                      activeThumbColor: Colors.orange,
                       onChanged: (bool nuevoValor) async {
                         // A) Cambiar estado local inmediatamente (UI fluida)
                         setState(() {
-                          alerta['activa'] = nuevoValor;
+                          alerta.activa = nuevoValor;
                         });
 
                         // B) Enviar a la API
-                        bool exito = await _apiService
-                            .actualizarEstadoAlerta(
-                              alerta['alerta_id'],
-                              nuevoValor,
-                            );
+                        bool exito = await _apiService.actualizarEstadoAlerta(
+                          alerta.id,
+                          nuevoValor,
+                        );
 
                         // C) Si falla, revertir
                         if (!exito) {
                           setState(() {
-                            alerta['activa'] = !nuevoValor;
+                            alerta.activa = !nuevoValor;
                           });
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -203,21 +185,21 @@ class _AlertsScreenState extends State<AlertsScreen> {
                               actions: <Widget>[
                                 TextButton(
                                   child: const Text('Cancelar'),
-                                  onPressed: () => Navigator.of(
-                                    context,
-                                  ).pop(),
+                                  onPressed: () => Navigator.of(context).pop(),
                                 ),
                                 TextButton(
                                   child: const Text('Eliminar'),
                                   onPressed: () async {
-                                    int alertaId = alerta['alerta_id'];
+                                    int alertaId = alerta.id;
                                     bool borrado = await _apiService
                                         .eliminarAlerta(alertaId);
                                     Navigator.of(context).pop();
                                     if (borrado) {
                                       // Recargar alertas desde la API
                                       _cargarAlertas();
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
                                         const SnackBar(
                                           content: Text(
                                             'Alerta eliminada correctamente.',
@@ -225,7 +207,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
                                         ),
                                       );
                                     } else {
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
                                         const SnackBar(
                                           content: Text(
                                             'No se pudo eliminar la alerta.',

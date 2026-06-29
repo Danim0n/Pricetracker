@@ -35,7 +35,7 @@ class _SearchScreenState extends State<SearchScreen> {
     });
 
     try {
-      final guardado = await _apiService.agregarProductoUrl(urltrim);
+      final guardado = await _apiService.trackProducto(urltrim);
 
       if (!mounted) return;
 

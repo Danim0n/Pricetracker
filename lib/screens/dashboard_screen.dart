@@ -1,11 +1,9 @@
-import 'dart:nativewrappers/_internal/vm/lib/ffi_allocation_patch.dart';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:pricetracker_app/models/alerta_model.dart';
 import 'package:pricetracker_app/models/product_model.dart';
 import 'package:pricetracker_app/screens/product_detail_screen.dart';
 import 'package:pricetracker_app/service/api_service.dart';
-import 'package:pricetracker_app/service/auth_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -28,7 +26,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<List<dynamic>> _fetchDatos() {
     return Future.wait([
-      _apiService.obtenerResumen(),
       _apiService.fetchProductos(),
       _apiService.obtenerAlertas(),
     ]);
@@ -54,13 +51,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  Map<String, dynamic>? _buscarAlertaDeProducto(
-    List<dynamic> alertas,
+  Alerta? _buscarAlertaDeProducto(
+    List<Alerta> alertas,
     int productoId,
   ) {
     try {
-      return alertas.firstWhere((a) => a['producto_id'] == productoId)
-          as Map<String, dynamic>;
+      return alertas.firstWhere((a) => a.productoId == productoId);
     } catch (_) {
       return null;
     }
@@ -108,10 +104,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
               );
             }
 
-            final resumen = snapshot.data![0] as Map<String, dynamic>;
-            final productos = snapshot.data![1] as List<Product>;
-            final alertas = snapshot.data![2] as List<dynamic>;
-            double varPorcentaje = resumen['porcentaje_variacion'] ?? 0.0;
+            final productos = snapshot.data![0] as List<Product>;
+            final alertas = snapshot.data![1] as List<Alerta>;
+
+            // Calcular resumen a partir de los datos
+            final double totalValue = productos.fold(
+              0.0,
+              (sum, p) => sum + p.precioActual,
+            );
+            final double totalOriginal = productos.fold(
+              0.0,
+              (sum, p) => sum + p.precioOriginal,
+            );
+            final double varPorcentaje = totalOriginal > 0
+                ? ((totalValue - totalOriginal) / totalOriginal) * 100
+                : 0.0;
+            final int alertasActivas =
+                alertas.where((a) => a.activa).length;
+            final int totalAlertas = alertas.length;
             bool esBajada = varPorcentaje < 0;
             return CustomScrollView(
               slivers: [
@@ -137,7 +147,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ),
                               const SizedBox(height: 5),
                               Text(
-                                '${resumen['total_watchlist_value']}€',
+                                '${totalValue.toStringAsFixed(2)}€',
                                 style: const TextStyle(
                                   fontSize: 28,
                                   fontWeight: FontWeight.bold,
@@ -157,7 +167,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
-                                    '${varPorcentaje.abs()}% Today',
+                                    '${varPorcentaje.abs().toStringAsFixed(1)}% Today',
                                     style: TextStyle(
                                       color: esBajada
                                           ? const Color(0xFFFF8A65)
@@ -194,7 +204,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       ),
                                       const SizedBox(height: 5),
                                       Text(
-                                        '${resumen['alertas_activas']}',
+                                        '$alertasActivas',
                                         style: const TextStyle(
                                           fontSize: 20,
                                           fontWeight: FontWeight.bold,
@@ -221,7 +231,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       ),
                                       const SizedBox(height: 5),
                                       Text(
-                                        '${resumen['total_alertas']}',
+                                        '$totalAlertas',
                                         style: const TextStyle(
                                           fontSize: 20,
                                           fontWeight: FontWeight.bold,
@@ -262,7 +272,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               producto.id,
                             );
                             final precioObjetivo = alerta != null
-                                ? '${alerta['precio_objetivo']}€'
+                                ? '${alerta.precioObjetivo}€'
                                 : 'Sin alerta';
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 20.0),
